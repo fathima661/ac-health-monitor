@@ -33,11 +33,11 @@ The system combines:
 
 ---
 
-## 🔌 Hardware Setup
+# 🔌 Hardware Setup
 
-### Components Used
+## Components Used
 
-* ESP8266 NodeMCU (WiFi microcontroller)
+* ESP8266 NodeMCU
 * DHT11 Sensor (Temperature & Humidity)
 * SW-420 Vibration Sensor
 * Solar Panel
@@ -46,7 +46,7 @@ The system combines:
 
 ---
 
-### ⚙️ Physical Build
+## ⚙️ Physical Build
 
 * Junction box used to safely house ESP8266 and power module
 * PVC conduit pipes used for wire protection and organization
@@ -54,49 +54,100 @@ The system combines:
 * Separate casing used to house:
 
   * SW-420 vibration sensor
-  * DHT11 temperature & humidity sensor
+  * DHT11 sensor
 
 ---
 
-### ⚡ Power Flow
-
-Solar Panel → Power Module → Battery → ESP8266 → Sensors
-
----
-
-## 🔄 System Architecture
+## ⚡ Power Flow Diagram
 
 ```
-Sensors → ESP8266 → ThingSpeak → FastAPI Backend → ML Model → Dashboard
+☀️ Solar Panel
+      ↓
+⚡ Power Module
+      ↓
+🔋 Battery
+      ↓
+📡 ESP8266
+      ↓
+🌡 Sensors
 ```
-
-### Data Flow Explanation
-
-1. Sensors collect real-time data
-2. ESP8266 processes and sends data via WiFi
-3. Data is uploaded to ThingSpeak cloud
-4. Backend retrieves and processes data
-5. ML model performs anomaly detection
-6. Results are displayed on dashboard
 
 ---
 
-## 📊 Dataset Description
+# 🧭 System Architecture (Visual)
 
-### Fields
+```
+        ┌──────────────┐
+        │  Sensors     │
+        │ Temp / Vib   │
+        └──────┬───────┘
+               │
+               ▼
+        ┌──────────────┐
+        │  ESP8266     │
+        │ (WiFi Node)  │
+        └──────┬───────┘
+               │
+               ▼
+        ┌──────────────┐
+        │ ThingSpeak   │
+        │ Cloud Storage│
+        └──────┬───────┘
+               │
+               ▼
+        ┌──────────────┐
+        │ FastAPI      │
+        │ Backend      │
+        └──────┬───────┘
+               │
+               ▼
+        ┌──────────────┐
+        │ ML Model     │
+        │ Isolation    │
+        │ Forest       │
+        └──────┬───────┘
+               │
+               ▼
+        ┌──────────────┐
+        │ Dashboard UI │
+        └──────────────┘
+```
+
+---
+
+# 🔄 System Flow
+
+```
+Sensors → ESP8266 → ThingSpeak → Backend → ML → Dashboard
+```
+
+### Step-by-step Flow
+
+1. Sensors collect temperature, humidity, and vibration
+2. ESP8266 sends data via WiFi
+3. Data stored in ThingSpeak cloud
+4. Backend retrieves data
+5. ML model analyzes patterns
+6. Dashboard displays system health
+
+---
+
+# 📊 Dataset Description
+
+## Fields
 
 * Temperature (°C) – from DHT11
 * Humidity (%) – from DHT11
-* Vibration – from SW-420 sensor
+* Vibration – from SW-420
 * Status – system condition label
 
 ---
 
-### ⚠️ Important Note on Status Field
+## ⚠️ Important Note on Status Field
 
 The **Status field is generated using predefined thresholds**, which leads to biased labeling.
 
-#### Threshold Logic:
+### Threshold Logic
 
 | Sensor      | Normal | Warning | Critical |
 | ----------- | ------ | ------- | -------- |
@@ -106,45 +157,39 @@ The **Status field is generated using predefined thresholds**, which leads to bi
 
 ---
 
-### 🚨 Limitation
+## 🚨 Limitation
 
-* Majority of data points labeled as **Critical**
+* Majority of data points labeled **Critical**
 * Dataset is **imbalanced**
 * Not suitable for supervised learning
 
 ---
 
-### ✅ Approach Used
+## ✅ Approach Used
 
-* Ignore the **Status field**
-* Use **unsupervised learning (Isolation Forest)**
-* Detect anomalies based on patterns instead of labels
-
----
-
-### 🔍 Special Condition
-
-* **Vibration = 0 → AC is OFF**
-* Handled separately in system logic
+* Ignore Status field
+* Use **Isolation Forest (unsupervised ML)**
+* Detect anomalies using behavior patterns
 
 ---
 
-### 📡 Data Source
+## 🔍 Special Condition
 
-* ESP8266 NodeMCU
-* DHT11 Sensor
-* SW-420 Sensor
-* Data logged using ThingSpeak
+```
+Vibration = 0 → AC is OFF
+```
+
+Handled separately in backend logic.
 
 ---
 
-## 🧠 Machine Learning Model
+# 🧠 Machine Learning Model
 
-### Algorithm Used
+## Algorithm Used
 
 * Isolation Forest
 
-### Why Isolation Forest?
+## Why Isolation Forest?
 
 * Works without labeled data
 * Efficient for anomaly detection
@@ -154,60 +199,58 @@ The **Status field is generated using predefined thresholds**, which leads to bi
 
 ## 🔍 Feature Engineering
 
-The model uses time-based features:
-
 * `temperature`
 * `vibration`
-* `temp_roll` (rolling average)
-* `vib_roll` (rolling average)
-* `temp_diff` (rate of change)
-* `vib_diff` (rate of change)
+* `temp_roll`
+* `vib_roll`
+* `temp_diff`
+* `vib_diff`
 
 ---
 
-## ⚙️ Backend System
+# ⚙️ Backend System
 
 * Built using FastAPI
 
-* Handles:
+### Handles:
 
-  * Data ingestion
-  * Prediction
-  * API responses
+* Data ingestion
+* Prediction
+* API responses
 
-* Uses Redis for:
+### Uses Redis for:
 
-  * Temporary storage
-  * Maintaining sensor history
+* Temporary storage
+* Maintaining sensor history
 
 ---
 
-## 🌐 Frontend Dashboard
+# 🌐 Frontend Dashboard
 
-Features:
+### Features
 
 * Real-time sensor monitoring
-* System status display (Normal / Warning / Critical)
+* System status display
 * Live temperature graph
-* ML confidence indicator
+* ML confidence bar
 * Manual & live modes
 
 ---
 
-## 🔄 System States
+# 🔄 System States
 
-| State    | Description                  |
-| -------- | ---------------------------- |
-| OFF      | AC is not running            |
-| WARMUP   | Initial data collection      |
-| RUNNING  | Normal operation             |
-| WARNING  | Performance degrading        |
-| CRITICAL | Immediate attention required |
-| INVALID  | Sensor noise                 |
+| State    | Description                |
+| -------- | -------------------------- |
+| OFF      | AC is not running          |
+| WARMUP   | Initial data collection    |
+| RUNNING  | Normal operation           |
+| WARNING  | Performance degrading      |
+| CRITICAL | Immediate attention needed |
+| INVALID  | Sensor noise               |
 
 ---
 
-## 🛠 Tech Stack
+# 🛠 Tech Stack
 
 ### Hardware
 
@@ -235,7 +278,7 @@ Features:
 
 ---
 
-## 📁 Project Structure
+# 📁 Project Structure
 
 ```
 AC_PREDICT/
@@ -259,71 +302,71 @@ AC_PREDICT/
 
 ---
 
-## ▶️ How to Run
-
-### 1. Clone repo
+# ▶️ How to Run
 
 ```
 git clone https://github.com/fathima661/ac-health-monitor.git
 cd ac-health-monitor
-```
 
-### 2. Create virtual environment
-
-```
 python -m venv venv
 venv\Scripts\activate
-```
 
-### 3. Install dependencies
-
-```
 pip install -r requirements.txt
-```
 
-### 4. Run Redis
-
-```
 redis-server
-```
 
-### 5. Start backend
-
-```
 uvicorn app.main:app --reload
 ```
 
-### 6. Open dashboard
+Open:
 
-Open `frontend/index.html`
+```
+frontend/index.html
+```
 
 ---
 
-## ⚠️ Limitations
+# 📸 Screenshots
 
-* Humidity not included in ML model
-* Confidence score is heuristic
+Add images here:
+
+```
+assets/dashboard.png  
+assets/hardware.jpg  
+```
+
+---
+
+# 🎤 Viva Explanation (Use this)
+
+“This project is an IoT-based predictive maintenance system for AC units.
+We use sensors connected to ESP8266 to collect real-time data.
+Data is sent to the cloud and processed using a FastAPI backend.
+
+Since labeled data was unreliable, we used Isolation Forest for anomaly detection.
+The system detects abnormal behavior and displays results in a real-time dashboard.”
+
+---
+
+# ⚠️ Limitations
+
+* Humidity not used in ML model
+* Confidence score is approximate
 * Uses polling instead of real-time streaming
 
 ---
 
-## 🚀 Future Enhancements
+# 🚀 Future Enhancements
 
-* Explainable AI (reason for anomaly)
 * WebSocket real-time updates
-* Alert system (SMS / Email / WhatsApp)
+* Explainable AI
+* SMS / Email alerts
 * Cloud deployment
-* Auto model retraining
+* Model retraining
 
 ---
 
-## 📸 Screenshots
-
-*Add your system images here*
-
----
-
-## 👨‍💻 Contributors
+# 👨‍💻 Contributors
 
 * Harinarayanan M
 * Nithin N
@@ -331,12 +374,12 @@ Open `frontend/index.html`
 
 ---
 
-## 📜 License
+# 📜 License
 
 For academic and research purposes only.
 
 ---
 
-## ⭐ Conclusion
+# ⭐ Conclusion
 
-This project demonstrates a **real-world application of IoT and Machine Learning** in predictive maintenance. By integrating hardware, cloud communication, and intelligent analytics, the system provides a scalable solution for monitoring and maintaining AC systems efficiently.
+This project demonstrates a **complete real-world integration of IoT and Machine Learning** to enable predictive maintenance and intelligent monitoring systems.
