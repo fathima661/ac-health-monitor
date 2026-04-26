@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>AC Health Monitor</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+body{
+    margin:0;
+    font-family:'Inter', sans-serif;
+    background: radial-gradient(circle at top, #0f172a, #020617);
+    color:#e2e8f0;
+    min-height: 100vh;
+}
+
+/* HEADER */
+.header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:18px 30px;
+    background:rgba(15,23,42,0.7);
+    backdrop-filter: blur(10px);
+    border-bottom:1px solid rgba(255,255,255,0.05);
+}
+
+.title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.logo{
+    width:42px;
+    height:42px;
+    border-radius:12px;
+    background:linear-gradient(135deg,#22d3ee,#6366f1);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:20px;
+    box-shadow:0 0 15px rgba(99,102,241,0.6);
+}
+
+/* LIVE INDICATOR */
+.live{
+    color:#22d3ee;
+    font-size:14px;
+    display: flex;
+    align-items: center;
+}
+.live::before{
+    content:'';
+    width:8px;
+    height:8px;
+    background:#22d3ee;
+    border-radius:50%;
+    display:inline-block;
+    margin-right:8px;
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse{
+    0%{opacity:0.3; transform:scale(0.8);}
+    50%{opacity:1; transform:scale(1.2);}
+    100%{opacity:0.3; transform:scale(0.8);}
+}
+
+/* CONTAINER */
+.container{
+    padding:25px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+/* TOP BAR */
+.topbar{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    background:rgba(15,23,42,0.6);
+    padding:15px 20px;
+    border-radius:14px;
+    backdrop-filter: blur(12px);
+    border:1px solid rgba(255,255,255,0.05);
+    margin-bottom:25px;
+}
+
+.controls {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+#mode {
+    padding: 8px 12px;
+    border-radius: 10px;
+    background: rgba(15, 23, 42, 0.8);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    cursor: pointer;
+}
+
+/* REUSABLE LABEL STYLE */
+.label{
+    color: #94a3b8;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+/* GRID */
+.grid{
+    display:grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 220px));
+    gap:20px;
+    justify-content: center;
+}
+
+.card{
+    background:rgba(15,23,42,0.6);
+    border-radius:18px;
+    padding:20px;
+    backdrop-filter: blur(14px);
+    border:1px solid rgba(255,255,255,0.05);
+    box-shadow:0 0 25px rgba(0,0,0,0.4);
+    transition: all 0.4s ease;
+}
+
+.sensor{
+    background:linear-gradient(145deg, rgba(34,211,238,0.08), rgba(99,102,241,0.08));
+}
+
+.value{
+    font-size:34px;
+    font-weight:600;
+    margin-top:10px;
+    transition: all 0.3s ease;
+}
+.value.updated {
+    transform: scale(1.1);
+}
+
+/* INDIVIDUAL SENSOR COLORS & EFFECTS */
+.sensor.green {
+    border: 1px solid rgba(34,197,94,0.5);
+    box-shadow: 0 0 15px rgba(34,197,94,0.4);
+}
+.sensor.green .value { color:#22c55e; }
+
+.sensor.yellow {
+    border: 1px solid rgba(234,179,8,0.5);
+    box-shadow: 0 0 15px rgba(234,179,8,0.4);
+}
+.sensor.yellow .value { color:#eab308; }
+
+.sensor.red {
+    border: 1px solid rgba(239,68,68,0.6);
+    box-shadow: 0 0 20px rgba(239,68,68,0.6);
+    animation: pulseRed 1.5s infinite, shake 0.3s infinite;
+}
+.sensor.red .value { color:#ef4444; }
+
+@keyframes pulseRed {
+    0% { box-shadow: 0 0 10px rgba(239,68,68,0.4); }
+    50% { box-shadow: 0 0 25px rgba(239,68,68,0.9); }
+    100% { box-shadow: 0 0 10px rgba(239,68,68,0.4); }
+}
+
+@keyframes shake {
+    0% { transform: translateX(0); }
+    50% { transform: translateX(2px); }
+    100% { transform: translateX(0); }
+}
+
+.status{
+    grid-column: span 2;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+}
+
+/* CONFIDENCE BAR */
+.confidence-container {
+    margin-top: 15px;
+}
+.confidence-label {
+    font-size: 11px;
+    color: #94a3b8;
+    text-transform: uppercase;
+    margin-bottom: 5px;
+}
+.confidence-bar-bg{
+    height:8px;
+    background:rgba(255,255,255,0.1);
+    border-radius:10px;
+}
+#confidenceBar{
+    height:100%;
+    width:0%;
+    background:linear-gradient(90deg,#22d3ee,#6366f1);
+    border-radius:10px;
+    transition: width 0.5s ease-out;
+}
+
+/* ANALYTICS */
+.chart-container{
+    height:300px;
+    position: relative;
+}
+
+/* INPUT SECTION */
+.form{
+    margin-top:30px;
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+    gap:15px;
+}
+
+input{
+    padding:12px;
+    border-radius:12px;
+    border:none;
+    background:rgba(15,23,42,0.6);
+    color:white;
+    border:1px solid rgba(255,255,255,0.05);
+}
+
+input:focus{
+    outline:none;
+    border:1px solid #6366f1;
+    box-shadow:0 0 8px rgba(99,102,241,0.5);
+}
+
+/* STATE THEMES FOR SYSTEM STATUS BOX */
+.state-warmup #status { color:#3b82f6; text-shadow:0 0 12px rgba(59,130,246,0.8); }
+.state-normal #status { color:#22c55e; text-shadow:0 0 12px rgba(34,197,94,0.8); }
+.state-warning #status { color:#eab308; text-shadow:0 0 12px rgba(234,179,8,0.8); }
+.state-critical #status { color:#ef4444; text-shadow:0 0 15px rgba(239,68,68,0.9); }
+.state-off { opacity: 0.6; }
+.state-invalid #status { color:#f97316; }
+</style>
+</head>
+
+<body>
+
+<div class="header">
+    <div class="title">
+        <div class="logo">⚡</div>
+        <div>
+            <div style="font-size:20px; font-weight: 600;">AC Health Monitor</div>
+            <div style="font-size:12px;color:#94a3b8;">Predictive Maintenance Dashboard</div>
+        </div>
+    </div>
+    <div class="live">Live</div>
+</div>
+
+<div class="container">
+
+    <div class="topbar">
+        <div>Last updated: <span id="time" style="color:#22d3ee;">--</span></div>
+        <div class="controls">
+            <select id="mode">
+                <option value="manual">Manual</option>
+                <option value="live">Live Sensor</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="label" style="margin-bottom:10px;">
+        ⚡ Live Sensor Readings
+    </div>
+
+    <div class="grid">
+        <div class="card sensor" id="tempCard">
+            <div class="label" id="tempLabel">🌡 Temperature</div>
+            <div class="value" id="temp">-- °C</div>
+        </div>
+        <div class="card sensor" id="humCard">
+            <div class="label" id="humLabel">💧 Humidity</div>
+            <div class="value" id="hum">-- %</div>
+        </div>
+        <div class="card sensor" id="vibCard">
+            <div class="label" id="vibLabel">📳 Vibration</div>
+            <div class="value" id="vib">-- mm/s</div>
+        </div>
+        <div class="card status" id="statusCard">
+            <div class="label">⚙ System Status</div>
+            <div class="value" id="status">--</div>
+            <div id="msg" style="color:#64748b; font-size: 13px; margin-top: 5px;">Waiting for data...</div>
+            <div class="confidence-container">
+                <div class="confidence-label">ML Confidence</div>
+                <div class="confidence-bar-bg"><div id="confidenceBar"></div></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="analytics">
+        <h3 style="margin-bottom: 15px; font-weight: 400;">Live Analytics</h3>
+        <div class="card">
+            <div class="chart-container"><canvas id="chart"></canvas></div>
+        </div>
+    </div>
+
+    <div class="form">
+        <input id="device_id" placeholder="Device ID" value="AC_UNIT_01">
+        <input id="temperature" type="number" placeholder="Temperature">
+        <input id="humidity" type="number" placeholder="Humidity">
+        <input id="vibration" type="number" placeholder="Vibration">
+    </div>
+</div>
+
+<script>
+// --- CONFIGURATION ---
+const BASE_URL = window.location.origin.startsWith("http")
+    ? window.location.origin
+    : "http://127.0.0.1:8000";
+const API_URL = `${BASE_URL}/predict`;
+
+let isLoading = false;
+
+// --- CHART.JS ---
+let chartData = {
+    labels: [],
+    datasets: [{
+        label: 'Temp (°C)',
+        data: [],
+        borderColor: '#22d3ee',
+        backgroundColor: 'rgba(34, 211, 238, 0.1)',
+        borderWidth: 2,
+        fill: true,
+        tension: 0.4
+    }]
+};
+const ctx = document.getElementById('chart').getContext('2d');
+const chart = new Chart(ctx, {
+    type: 'line',
+    data: chartData,
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+            y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8' } },
+            x: { grid: { display: false }, ticks: { color: '#94a3b8' } }
+        },
+        plugins: { legend: { display: false } }
+    }
+});
+
+function updateChart(temp){
+    const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    chartData.labels.push(now);
+    chartData.datasets[0].data.push(temp);
+    if(chartData.labels.length > 15){
+        chartData.labels.shift();
+        chartData.datasets[0].data.shift();
+    }
+    chart.update();
+}
+
+// --- PER-CARD SENSOR LOGIC ---
+function setSensorColor(id, value, type){
+    const el = document.getElementById(id);
+    const label = document.getElementById(type + "Label");
+    el.classList.remove("green", "yellow", "red");
+
+    if(type === "temp"){
+        if(value > 40) { el.classList.add("red"); label.innerHTML = "🌡🔥 Temperature"; }
+        else if(value > 30) { el.classList.add("yellow"); label.innerHTML = "🌡 Temperature"; }
+        else { el.classList.add("green"); label.innerHTML = "🌡 Temperature"; }
+    }
+
+    if(type === "hum"){
+        if(value > 80) { el.classList.add("red"); label.innerHTML = "💧⚠️ Humidity"; }
+        else if(value > 60) { el.classList.add("yellow"); label.innerHTML = "💧 Humidity"; }
+        else { el.classList.add("green"); label.innerHTML = "💧 Humidity"; }
+    }
+
+    if(type === "vib"){
+        if(value > 60) { el.classList.add("red"); label.innerHTML = "📳‼️ Vibration"; }
+        else if(value > 30) { el.classList.add("yellow"); label.innerHTML = "📳 Vibration"; }
+        else { el.classList.add("green"); label.innerHTML = "📳 Vibration"; }
+    }
+}
+
+// --- UI HELPERS ---
+function animateValue(id, newVal){
+    const el = document.getElementById(id);
+    if(el){
+        el.classList.add("updated");
+        setTimeout(()=> el.classList.remove("updated"), 300);
+        el.innerText = newVal;
+    }
+}
+
+function updateUI(data){
+    if(!data || data.temperature === undefined) return;
+
+    animateValue("temp", data.temperature + " °C");
+    animateValue("hum", data.humidity + " %");
+    animateValue("vib", data.vibration + " mm/s");
+    document.getElementById("time").innerText = data.timestamp;
+
+    // Apply individual sensor card colors
+    setSensorColor("tempCard", data.temperature, "temp");
+    setSensorColor("humCard", data.humidity, "hum");
+    setSensorColor("vibCard", data.vibration, "vib");
+
+    updateChart(data.temperature);
+
+    if(data.score !== undefined && data.score !== null){
+        let percent = Math.min(Math.abs(data.score) * 100, 100);
+        document.getElementById("confidenceBar").style.width = percent + "%";
+    }
+
+    document.body.className = "";
+    let status = document.getElementById("status");
+    let msg = document.getElementById("msg");
+    
+    let score = data.score || 0;
+
+    // detect sensor critical
+    let isCritical =
+        data.temperature > 40 ||
+        data.humidity > 80 ||
+        data.vibration > 60;
+
+    let isWarning =
+        data.temperature > 30 ||
+        data.humidity > 60 ||
+        data.vibration > 30;
+
+    if(data.state === "OFF") {
+        status.innerText = "OFF";
+        msg.innerText = "System is turned off";
+        document.body.classList.add("state-off");
+    }
+    else if(data.state === "INVALID") {
+        status.innerText = "Invalid";
+        msg.innerText = "Sensor noise detected";
+        document.body.classList.add("state-invalid");
+    }
+    else if(data.state === "WARMUP") {
+        status.innerText = "Warmup";
+        msg.innerText = "Collecting baseline data...";
+        document.body.classList.add("state-warmup");
+    }
+    else if(isCritical || data.prediction === "ANOMALY") {
+        status.innerText = "Critical";
+        msg.innerText = "Immediate maintenance required";
+        document.body.classList.add("state-critical");
+    }
+    else if(isWarning || score > 0.5) {
+        status.innerText = "Warning";
+        msg.innerText = "Performance degrading";
+        document.body.classList.add("state-warning");
+    }
+    else {
+        status.innerText = "Normal";
+        msg.innerText = "All parameters within optimal range";
+        document.body.classList.add("state-normal");
+    }
+}
+
+// --- API FUNCTIONS ---
+async function fetchLiveData(){
+    if(isLoading) return;
+    const deviceId = document.getElementById("device_id").value;
+    try{
+        const res = await fetch(`${BASE_URL}/latest/${deviceId}`);
+        if(!res.ok) throw new Error("No live data yet");
+        const data = await res.json();
+        updateUI(data);
+    } catch(err){
+        console.warn("Live fetch failed:", err.message);
+    }
+}
+
+async function predict(){
+    if(isLoading) return;
+    const deviceId = document.getElementById("device_id").value;
+    const tempVal = parseFloat(document.getElementById("temperature").value);
+    const humVal = parseFloat(document.getElementById("humidity").value);
+    const vibVal = parseFloat(document.getElementById("vibration").value);
+
+    if(!deviceId || isNaN(tempVal)) return;
+
+    isLoading = true;
+    try{
+        const res = await fetch(API_URL,{
+            method:"POST",
+            headers:{ "Content-Type":"application/json" },
+            body: JSON.stringify({
+                device_id: deviceId,
+                temperature: tempVal,
+                humidity: humVal,
+                vibration: vibVal
+            })
+        });
+        const data = await res.json();
+        updateUI(data);
+    } catch(err){
+        console.error("Prediction failed:", err);
+    } finally {
+        isLoading = false;
+    }
+}
+
+setInterval(() => {
+    const mode = document.getElementById("mode").value;
+    if(mode === "manual"){
+        const t = document.getElementById("temperature").value;
+        const h = document.getElementById("humidity").value;
+        const v = document.getElementById("vibration").value;
+        if(t !== "" && h !== "" && v !== "") predict();
+    } else {
+        fetchLiveData();
+    }
+}, 5000);
+</script>
+
+</body>
+</html>
