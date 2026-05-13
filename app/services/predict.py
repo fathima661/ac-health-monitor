@@ -1,157 +1,228 @@
+import os
 import joblib
 import numpy as np
 import pandas as pd
-import os
-import logging
+from collections import deque
 
-# ----------------------------
-# Logging (IMPORTANT for production)
-# ----------------------------
-logger = logging.getLogger(__name__)
-
-# ----------------------------
+# ==========================================
 # Paths
-# ----------------------------
+# ==========================================
+
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-MODEL_PATH = os.path.join(BASE_DIR, "model", "anomaly_model.pkl")
-SCALER_PATH = os.path.join(BASE_DIR, "model", "scaler.pkl")
+MODEL_DIR = os.path.join(BASE_DIR, "model")
 
-# ----------------------------
-# Safe model loading
-# ----------------------------
-try:
-    model = joblib.load(MODEL_PATH)
-    scaler = joblib.load(SCALER_PATH)
-except Exception as e:
-    logger.error(f"Model loading failed: {e}")
-    raise RuntimeError("Model or scaler missing/corrupted")
+MODEL_PATH = os.path.join(MODEL_DIR, "model_final.pkl")
+SCALER_PATH = os.path.join(MODEL_DIR, "scaler_final.pkl")
+FEATURES_PATH = os.path.join(MODEL_DIR, "features_final.pkl")
+LABEL_ENCODER_PATH = os.path.join(MODEL_DIR, "label_encoder_final.pkl")
 
-# ----------------------------
-# Configurable thresholds (NO HARDCODE)
-# ----------------------------
-VIB_MIN = float(os.getenv("VIB_MIN", 0.2))
-VIB_MAX = float(os.getenv("VIB_MAX", 20))
-WINDOW_SIZE = int(os.getenv("WINDOW_SIZE", 3))
+# ==========================================
+# Load Artifacts
+# ==========================================
+
+model = joblib.load(MODEL_PATH)
+scaler = joblib.load(SCALER_PATH)
+features = joblib.load(FEATURES_PATH)
+label_encoder = joblib.load(LABEL_ENCODER_PATH)
+
+# ==========================================
+# Rolling History
+# ==========================================
+
+TEMP_HISTORY = deque(maxlen=5)
+VIB_HISTORY = deque(maxlen=5)
+
+# ==========================================
+# Severity Mapping
+# ==========================================
+
+SEVERITY_MAP = {
+    "NORMAL": 0,
+    "WARNING": 1,
+    "CRITICAL": 2
+}
 
 
-def predict_ac_status(temp, hum, vib, history):
-    """
-    Production-grade AC anomaly prediction
-    """
+# ==========================================
+# Sensor Status Logic
+# ==========================================
 
-    try:
-        # ----------------------------
-        # 1. Validation
-        # ----------------------------
-        if temp is None or vib is None:
-            return {
-                "state": "ERROR",
-                "prediction": None,
-                "score": None,
-                "reason": "Missing values"
-            }
+def temperature_status(temp):
+    if temp > 42:
+        return "CRITICAL"
+    elif temp > 36:
+        return "WARNING"
+    return "NORMAL"
 
-        if np.isnan(temp) or np.isnan(vib):
-            return {
-                "state": "ERROR",
-                "prediction": None,
-                "score": None,
-                "reason": "NaN detected"
-            }
 
-        # ----------------------------
-        # 2. OFF detection
-        # ----------------------------
-        if vib == 0:
-            #history.clear()
-            return {
-                "state": "OFF",
-                "prediction": None,
-                "score": None,
-                "reason": "No vibration → AC OFF"
-            }
+def humidity_status(humidity):
+    if humidity > 98:
+        return "CRITICAL"
+    elif humidity > 95:
+        return "WARNING"
+    return "NORMAL"
 
-        # ----------------------------
-        # 3. Noise filtering (CONFIG BASED)
-        # ----------------------------
-        if vib < VIB_MIN or vib > VIB_MAX:
-            return {
-                "state": "INVALID",
-                "prediction": None,
-                "score": None,
-                "reason": "Sensor noise / out of range"
-            }
 
-        # ----------------------------
-        # 4. Store history (SAFE LIMIT)
-        # ----------------------------
-        history.append((temp, vib))
+def vibration_status(vibration):
+    if vibration > 10:
+        return "CRITICAL"
+    elif vibration > 2:
+        return "WARNING"
+    return "NORMAL"
 
-        if len(history) > WINDOW_SIZE:
-            history.pop(0)
 
-        if len(history) < WINDOW_SIZE:
-            return {
-                "state": "WARMUP",
-                "prediction": None,
-                "score": None,
-                "reason": "Collecting enough data"
-            }
+# ==========================================
+# Feature Engineering
+# ==========================================
 
-        temps = [t for t, _ in history]
-        vibs = [v for _, v in history]
+def calculate_features(temperature, humidity, vibration):
 
-        # ----------------------------
-        # 5. Feature Engineering
-        # ----------------------------
-        temp_roll = np.mean(temps)
-        vib_roll = np.mean(vibs)
+    TEMP_HISTORY.append(temperature)
+    VIB_HISTORY.append(vibration)
 
-        temp_diff = temps[-1] - temps[-2]
-        vib_diff = vibs[-1] - vibs[-2]
+    vib_roll_mean = np.mean(VIB_HISTORY)
+    temp_roll_mean = np.mean(TEMP_HISTORY)
 
-        X = pd.DataFrame([{
-            "temperature": temp,
-            "vibration": vib,
-            "temp_roll": temp_roll,
-            "vib_roll": vib_roll,
-            "temp_diff": temp_diff,
-            "vib_diff": vib_diff
-        }])
+    vib_slope = 0
+    temp_slope = 0
+    vib_acceleration = 0
 
-        # ----------------------------
-        # 6. Scaling + Prediction (SAFE)
-        # ----------------------------
-        X_scaled = scaler.transform(X)
+    if len(VIB_HISTORY) >= 2:
+        vib_slope = VIB_HISTORY[-1] - VIB_HISTORY[-2]
 
-        pred = model.predict(X_scaled)[0]
-        score = float(model.decision_function(X_scaled)[0])
+    if len(TEMP_HISTORY) >= 2:
+        temp_slope = TEMP_HISTORY[-1] - TEMP_HISTORY[-2]
 
-        # ----------------------------
-        # 7. Explanation (IMPROVED)
-        # ----------------------------
-        reason = "Normal operation"
+    if len(VIB_HISTORY) >= 3:
+        vib_acceleration = (
+            VIB_HISTORY[-1]
+            - 2 * VIB_HISTORY[-2]
+            + VIB_HISTORY[-3]
+        )
 
-        if abs(vib_diff) > 0.5:
-            reason = "Sudden vibration spike detected"
-        elif abs(temp_diff) > 2:
-            reason = "Temperature fluctuation detected"
-        elif pred == -1:
-            reason = "Pattern deviates from normal behavior"
+    data = {
+        "Vibration": vibration,
+        "Temperature": temperature,
+        "Humidity": humidity,
+        "vib_roll_mean": vib_roll_mean,
+        "temp_roll_mean": temp_roll_mean,
+        "vib_slope": vib_slope,
+        "temp_slope": temp_slope,
+        "vib_acceleration": vib_acceleration
+    }
 
-        return {
-            "state": "RUNNING",
-            "prediction": "NORMAL" if pred == 1 else "ANOMALY",
-            "score": score,
-            "reason": reason
-        }
+    return pd.DataFrame([data])
 
-    except Exception as e:
-        logger.error(f"Prediction failure: {e}")
-        return {
-            "state": "ERROR",
-            "prediction": None,
-            "score": None,
-            "reason": "Internal prediction error"
-        }
+
+# ==========================================
+# Main Prediction Function
+# ==========================================
+
+def predict_system(temperature, humidity, vibration):
+
+    # --------------------------------------
+    # Sensor Status
+    # --------------------------------------
+
+    temp_status = temperature_status(temperature)
+    hum_status = humidity_status(humidity)
+    vib_status = vibration_status(vibration)
+
+    sensor_states = [
+        temp_status,
+        hum_status,
+        vib_status
+    ]
+
+    # --------------------------------------
+    # Feature Engineering
+    # --------------------------------------
+
+    df = calculate_features(
+        temperature,
+        humidity,
+        vibration
+    )
+
+    X = df[features]
+
+    X_scaled = scaler.transform(X)
+
+    # --------------------------------------
+    # ML Prediction
+    # --------------------------------------
+
+    prediction_encoded = model.predict(X_scaled)[0]
+
+    prediction = label_encoder.inverse_transform(
+        [prediction_encoded]
+    )[0]
+
+    # --------------------------------------
+    # Risk Score
+    # --------------------------------------
+
+    probabilities = model.predict_proba(X_scaled)[0]
+
+    risk_score = float(np.max(probabilities) * 100)
+
+    # --------------------------------------
+    # Hybrid Logic
+    # --------------------------------------
+
+    all_states = sensor_states + [prediction]
+
+    final_status = max(
+        all_states,
+        key=lambda x: SEVERITY_MAP[x]
+    )
+
+    # --------------------------------------
+    # Reasoning
+    # --------------------------------------
+
+    reasons = []
+
+    if temp_status == "CRITICAL":
+        reasons.append("Extreme compressor temperature detected")
+    elif temp_status == "WARNING":
+        reasons.append("Temperature level elevated")
+
+    if hum_status == "CRITICAL":
+        reasons.append("Critical humidity level detected")
+    elif hum_status == "WARNING":
+        reasons.append("Humidity level elevated")
+
+    if vib_status == "CRITICAL":
+        reasons.append("Severe compressor vibration detected")
+    elif vib_status == "WARNING":
+        reasons.append("Abnormal vibration trend detected")
+
+    reason = " | ".join(reasons)
+
+    # --------------------------------------
+    # Final Output
+    # --------------------------------------
+
+    return {
+        "sensor_values": {
+            "temperature": temperature,
+            "humidity": humidity,
+            "vibration": vibration
+        },
+
+        "sensor_status": {
+            "temperature_status": temp_status,
+            "humidity_status": hum_status,
+            "vibration_status": vib_status
+        },
+
+        "ml_prediction": prediction,
+
+        "risk_score": round(risk_score, 2),
+
+        "final_status": final_status,
+
+        "reason": reason
+    }

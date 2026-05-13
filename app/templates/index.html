@@ -1,0 +1,1775 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0">
+
+    <title>AC Predict</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Orbitron:wght@500;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Orbitron:wght@500;700;800&display=swap');
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+}
+
+:root{
+
+    --bg:#0d0d0d;
+    --panel:#171717;
+    --panel-2:#1f1f1f;
+
+    --line:#2b2b2b;
+
+    --text:#f3e6c8;
+    --muted:#b8a98d;
+
+    --orange:#ff9f43;
+    --green:#70e0a3;
+    --yellow:#ffc857;
+    --red:#ff6464;
+
+    --glow-orange:0 0 20px rgba(255,159,67,0.35);
+}
+
+body{
+
+    font-family:'IBM Plex Mono', monospace;
+
+    background:
+        linear-gradient(
+            180deg,
+            #0b0b0b,
+            #121212
+        );
+
+    color:var(--text);
+
+    min-height:100vh;
+
+    padding:28px;
+
+    overflow-x:hidden;
+
+    position:relative;
+}
+
+/* ====================================
+   CRT / NOISE EFFECT
+==================================== */
+
+body::before{
+
+    content:"";
+
+    position:fixed;
+
+    inset:0;
+
+    pointer-events:none;
+
+    background:
+        repeating-linear-gradient(
+            to bottom,
+            rgba(255,255,255,0.02),
+            rgba(255,255,255,0.02) 1px,
+            transparent 1px,
+            transparent 3px
+        );
+
+    opacity:0.15;
+}
+
+/* ====================================
+   CONTAINER
+==================================== */
+
+.container{
+
+    max-width:1550px;
+
+    margin:auto;
+}
+
+/* ====================================
+   TOPBAR
+==================================== */
+
+.topbar{
+
+    display:flex;
+
+    justify-content:space-between;
+
+    align-items:flex-start;
+
+    margin-bottom:34px;
+
+    border-bottom:1px solid var(--line);
+
+    padding-bottom:24px;
+}
+
+.branding h1{
+
+    font-family:'Orbitron', sans-serif;
+
+    font-size:64px;
+
+    letter-spacing:4px;
+
+    color:var(--orange);
+
+    text-shadow:0 0 20px rgba(255,159,67,0.4);
+
+    margin-bottom:10px;
+}
+
+.branding p{
+
+    color:var(--muted);
+
+    max-width:600px;
+
+    line-height:1.9;
+
+    font-size:14px;
+
+    text-transform:uppercase;
+
+    letter-spacing:1px;
+}
+
+.system-panel{
+
+    display:flex;
+
+    gap:14px;
+}
+
+.system-badge{
+
+    background:var(--panel);
+
+    border:1px solid var(--line);
+
+    padding:16px 22px;
+
+    min-width:180px;
+
+    color:var(--text);
+
+    font-size:13px;
+
+    letter-spacing:1px;
+
+    box-shadow:
+        inset 0 0 0 1px rgba(255,255,255,0.03),
+        0 0 18px rgba(0,0,0,0.4);
+}
+
+/* ====================================
+   LIVE DOT
+==================================== */
+
+.live-status{
+
+    display:flex;
+
+    align-items:center;
+
+    gap:10px;
+}
+
+.live-dot{
+
+    width:10px;
+
+    height:10px;
+
+    border-radius:50%;
+
+    background:var(--orange);
+
+    box-shadow:var(--glow-orange);
+
+    animation:pulse 1.2s infinite;
+}
+
+@keyframes pulse{
+
+    0%{
+        opacity:0.5;
+        transform:scale(0.9);
+    }
+
+    50%{
+        opacity:1;
+        transform:scale(1.1);
+    }
+
+    100%{
+        opacity:0.5;
+        transform:scale(0.9);
+    }
+}
+
+/* ====================================
+   GRID
+==================================== */
+
+.top-grid{
+
+    display:grid;
+
+    grid-template-columns:repeat(4,1fr);
+
+    gap:22px;
+
+    margin-bottom:28px;
+}
+
+/* ====================================
+   MODULE CARDS
+==================================== */
+
+.metric-card{
+
+    background:
+        linear-gradient(
+            180deg,
+            #1b1b1b,
+            #141414
+        );
+
+    border:1px solid var(--line);
+
+    padding:28px;
+
+    position:relative;
+
+    overflow:hidden;
+
+    transition:0.3s ease;
+
+    min-height:340px;
+}
+
+.metric-card::before{
+
+    content:"";
+
+    position:absolute;
+
+    top:0;
+    left:0;
+
+    width:100%;
+    height:3px;
+
+    background:var(--orange);
+
+    box-shadow:var(--glow-orange);
+}
+
+.metric-card:hover{
+
+    transform:translateY(-4px);
+
+    border-color:#444;
+
+    box-shadow:
+        0 0 24px rgba(255,159,67,0.08);
+}
+
+/* ====================================
+   STATUS CARDS
+==================================== */
+
+.normal-card::before{
+    background:var(--green);
+    box-shadow:0 0 20px rgba(112,224,163,0.4);
+}
+
+.warning-card::before{
+    background:var(--yellow);
+}
+
+.critical-card::before{
+    background:var(--red);
+}
+
+/* ====================================
+   CARD HEADERS
+==================================== */
+
+.card-header{
+
+    display:flex;
+
+    justify-content:space-between;
+
+    align-items:center;
+
+    margin-bottom:24px;
+}
+
+.sensor-name{
+
+    display:flex;
+
+    align-items:center;
+
+    gap:12px;
+
+    color:var(--muted);
+
+    font-size:12px;
+
+    letter-spacing:2px;
+
+    text-transform:uppercase;
+}
+
+.sensor-name i{
+
+    color:var(--orange);
+
+    font-size:22px;
+}
+
+/* ====================================
+   VALUES
+==================================== */
+
+.metric-value{
+
+    font-family:'Orbitron', sans-serif;
+
+    font-size:58px;
+
+    color:var(--text);
+
+    margin-bottom:8px;
+
+    text-shadow:0 0 14px rgba(255,255,255,0.08);
+}
+
+.primary-state{
+
+    font-size:18px;
+
+    margin-bottom:24px;
+
+    font-weight:600;
+
+    letter-spacing:1px;
+}
+
+/* ====================================
+   INNER GRID
+==================================== */
+
+.telemetry-grid{
+
+    display:grid;
+
+    grid-template-columns:1fr 1fr;
+
+    gap:12px;
+}
+
+.telemetry-item{
+
+    background:var(--panel-2);
+
+    border:1px solid var(--line);
+
+    padding:14px;
+}
+
+.telemetry-label{
+
+    color:#8d816e;
+
+    font-size:10px;
+
+    margin-bottom:8px;
+
+    letter-spacing:2px;
+}
+
+.telemetry-data{
+
+    color:var(--text);
+
+    font-size:14px;
+
+    font-weight:600;
+}
+
+/* ====================================
+   MAIN SECTIONS
+==================================== */
+
+.main-card,
+.input-card{
+
+    background:var(--panel);
+
+    border:1px solid var(--line);
+
+    padding:32px;
+
+    margin-bottom:28px;
+}
+
+.section-title{
+
+    display:flex;
+
+    justify-content:space-between;
+
+    align-items:center;
+
+    margin-bottom:26px;
+}
+
+.section-title h2{
+
+    font-family:'Orbitron', sans-serif;
+
+    color:var(--orange);
+
+    letter-spacing:2px;
+
+    font-size:26px;
+}
+
+.telemetry-mode{
+
+    border:1px solid var(--orange);
+
+    color:var(--orange);
+
+    padding:10px 16px;
+
+    font-size:12px;
+
+    letter-spacing:2px;
+}
+
+/* ====================================
+   CHART
+==================================== */
+
+.chart-container{
+
+    height:420px;
+
+    background:#111;
+
+    border:1px solid var(--line);
+
+    padding:16px;
+}
+
+/* ====================================
+   DIAGNOSTICS
+==================================== */
+
+.diagnostics{
+
+    margin-top:24px;
+
+    background:#101010;
+
+    border:1px solid var(--line);
+
+    padding:24px;
+}
+
+.diagnostics h3{
+
+    color:var(--orange);
+
+    margin-bottom:14px;
+
+    font-family:'Orbitron', sans-serif;
+
+    letter-spacing:2px;
+}
+
+.diagnostics p{
+
+    color:var(--muted);
+
+    line-height:2;
+}
+
+/* ====================================
+   INPUTS
+==================================== */
+
+.input-grid{
+
+    display:grid;
+
+    grid-template-columns:repeat(3,1fr);
+
+    gap:20px;
+}
+
+.input-group label{
+
+    display:block;
+
+    margin-bottom:10px;
+
+    color:var(--muted);
+
+    font-size:13px;
+
+    letter-spacing:1px;
+}
+
+.input-group input{
+
+    width:100%;
+
+    background:#101010;
+
+    border:1px solid var(--line);
+
+    padding:18px;
+
+    color:var(--text);
+
+    font-family:'IBM Plex Mono', monospace;
+
+    outline:none;
+
+    transition:0.25s;
+}
+
+.input-group input:focus{
+
+    border-color:var(--orange);
+
+    box-shadow:var(--glow-orange);
+}
+
+.input-group input::placeholder{
+
+    color:#666;
+}
+
+/* ====================================
+   FOOTER
+==================================== */
+
+.footer{
+
+    text-align:center;
+
+    color:#776d5f;
+
+    margin-top:26px;
+
+    letter-spacing:2px;
+
+    font-size:12px;
+}
+
+/* ====================================
+   STATUS COLORS
+==================================== */
+
+.status-normal{
+    color:var(--green);
+}
+
+.status-warning{
+    color:var(--yellow);
+}
+
+.status-critical{
+    color:var(--red);
+}
+
+/* ====================================
+   RESPONSIVE
+==================================== */
+
+@media(max-width:1300px){
+
+    .top-grid{
+        grid-template-columns:1fr 1fr;
+    }
+}
+
+@media(max-width:850px){
+
+    .top-grid{
+        grid-template-columns:1fr;
+    }
+
+    .input-grid{
+        grid-template-columns:1fr;
+    }
+
+    .topbar{
+
+        flex-direction:column;
+
+        gap:24px;
+    }
+
+    .branding h1{
+        font-size:42px;
+    }
+}
+    </style>
+
+</head>
+
+<body>
+
+    <div class="container">
+
+        <!-- =====================================
+             TOPBAR
+        ===================================== -->
+
+        <div class="topbar">
+
+            <div class="branding">
+
+                <h1>AC Predict</h1>
+
+                <p>
+                    REAL-TIME COMPRESSOR HEALTH
+                    MONITORING & PREDICTIVE
+                    MAINTENANCE INTELLIGENCE
+                </p>
+
+            </div>
+
+            <div class="system-panel">
+
+                <div class="system-badge">
+
+                    <div class="live-status">
+
+                        <div class="live-dot"></div>
+
+                        LIVE TELEMETRY ACTIVE
+
+                    </div>
+
+                </div>
+
+                <div class="system-badge"
+                    id="system_time">
+                    --
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- =====================================
+             TOP GRID
+        ===================================== -->
+
+        <div class="top-grid">
+
+            <!-- TEMPERATURE -->
+
+            <div class="metric-card" id="temp_card">
+
+                <div class="card-header">
+
+                    <div class="sensor-name">
+                        <i class="fa-solid fa-temperature-three-quarters"></i>
+                        THERMAL MONITOR
+                    </div>
+
+                    <div class="live-dot"></div>
+
+                </div>
+
+                <div class="metric-value"
+                    id="temp_value">
+                    --
+                </div>
+
+                <div class="primary-state"
+                    id="temp_status">
+                    --
+                </div>
+
+                <div class="telemetry-grid">
+
+                    <div class="telemetry-item">
+
+                        <div class="telemetry-label">
+                            LOAD
+                        </div>
+
+                        <div class="telemetry-data"
+                            id="temp_load">
+                            --
+                        </div>
+
+                    </div>
+
+                    <div class="telemetry-item">
+
+                        <div class="telemetry-label">
+                            TREND
+                        </div>
+
+                        <div class="telemetry-data"
+                            id="temp_trend">
+                            --
+                        </div>
+
+                    </div>
+
+                    <div class="telemetry-item">
+
+                        <div class="telemetry-label">
+                            RANGE
+                        </div>
+
+                        <div class="telemetry-data">
+                            ≤36°C
+                        </div>
+
+                    </div>
+
+                    <div class="telemetry-item">
+
+                        <div class="telemetry-label">
+                            CONDITION
+                        </div>
+
+                        <div class="telemetry-data"
+                            id="temp_condition">
+                            --
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+            <!-- HUMIDITY -->
+
+            <div class="metric-card" id="hum_card">
+
+                <div class="card-header">
+
+                    <div class="sensor-name">
+                        <i class="fa-solid fa-droplet"></i>
+                        ENVIRONMENT MONITOR
+                    </div>
+
+                    <div class="live-dot"></div>
+
+                </div>
+
+                <div class="metric-value"
+                    id="hum_value">
+                    --
+                </div>
+
+                <div class="primary-state"
+                    id="hum_status">
+                    --
+                </div>
+
+                <div class="telemetry-grid">
+
+                    <div class="telemetry-item">
+
+                        <div class="telemetry-label">
+                            MOISTURE
+                        </div>
+
+                        <div class="telemetry-data"
+                            id="hum_env">
+                            --
+                        </div>
+
+                    </div>
+
+                    <div class="telemetry-item">
+
+                        <div class="telemetry-label">
+                            RISK
+                        </div>
+
+                        <div class="telemetry-data"
+                            id="hum_risk">
+                            --
+                        </div>
+
+                    </div>
+
+                    <div class="telemetry-item">
+
+                        <div class="telemetry-label">
+                            RANGE
+                        </div>
+
+                        <div class="telemetry-data">
+                            ≤95%
+                        </div>
+
+                    </div>
+
+                    <div class="telemetry-item">
+
+                        <div class="telemetry-label">
+                            IMPACT
+                        </div>
+
+                        <div class="telemetry-data"
+                            id="hum_impact">
+                            --
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+            <!-- VIBRATION -->
+
+            <div class="metric-card" id="vib_card">
+
+                <div class="card-header">
+
+                    <div class="sensor-name">
+                        <i class="fa-solid fa-wave-square"></i>
+                        MECHANICAL ANALYSIS
+                    </div>
+
+                    <div class="live-dot"></div>
+
+                </div>
+
+                <div class="metric-value"
+                    id="vib_value">
+                    --
+                </div>
+
+                <div class="primary-state"
+                    id="vib_status">
+                    --
+                </div>
+
+                <div class="telemetry-grid">
+
+                    <div class="telemetry-item">
+
+                        <div class="telemetry-label">
+                            ACTIVITY
+                        </div>
+
+                        <div class="telemetry-data"
+                            id="vib_activity">
+                            --
+                        </div>
+
+                    </div>
+
+                    <div class="telemetry-item">
+
+                        <div class="telemetry-label">
+                            STABILITY
+                        </div>
+
+                        <div class="telemetry-data"
+                            id="vib_stability">
+                            --
+                        </div>
+
+                    </div>
+
+                    <div class="telemetry-item">
+
+                        <div class="telemetry-label">
+                            RANGE
+                        </div>
+
+                        <div class="telemetry-data">
+                            ≤2Hz
+                        </div>
+
+                    </div>
+
+                    <div class="telemetry-item">
+
+                        <div class="telemetry-label">
+                            CONDITION
+                        </div>
+
+                        <div class="telemetry-data"
+                            id="vib_condition">
+                            --
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+            <!-- SYSTEM -->
+
+            <div class="metric-card" id="system_card">
+
+                <div class="card-header">
+
+                    <div class="sensor-name">
+                        <i class="fa-solid fa-microchip"></i>
+                        SYSTEM INTELLIGENCE
+                    </div>
+
+                    <div class="live-dot"></div>
+
+                </div>
+
+                <div class="metric-value"
+                    id="final_status">
+                    --
+                </div>
+
+                <div class="primary-state"
+                    id="risk_score">
+                    --
+                </div>
+
+                <div class="telemetry-grid">
+
+                    <div class="telemetry-item">
+
+                        <div class="telemetry-label">
+                            ML STATE
+                        </div>
+
+                        <div class="telemetry-data"
+                            id="ml_prediction">
+                            --
+                        </div>
+
+                    </div>
+
+                    <div class="telemetry-item">
+
+                        <div class="telemetry-label">
+                            PRIORITY
+                        </div>
+
+                        <div class="telemetry-data"
+                            id="system_priority">
+                            --
+                        </div>
+
+                    </div>
+
+                    <div class="telemetry-item">
+
+                        <div class="telemetry-label">
+                            RISK
+                        </div>
+
+                        <div class="telemetry-data"
+                            id="risk_level">
+                            --
+                        </div>
+
+                    </div>
+
+                    <div class="telemetry-item">
+
+                        <div class="telemetry-label">
+                            MAINTENANCE
+                        </div>
+
+                        <div class="telemetry-data"
+                            id="maintenance_action">
+                            --
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- =====================================
+             MAIN GRAPH
+        ===================================== -->
+
+        <div class="main-card">
+
+            <div class="section-title">
+
+                <h2>
+                    LIVE TELEMETRY ANALYSIS
+                </h2>
+
+                <div class="telemetry-mode">
+                    REAL-TIME STREAM
+                </div>
+
+            </div>
+
+            <div class="chart-container">
+
+                <canvas id="sensorChart"></canvas>
+
+            </div>
+
+            <div class="diagnostics">
+
+                <h3>
+                    SYSTEM DIAGNOSTICS
+                </h3>
+
+                <p id="reason">
+                    Waiting for live telemetry...
+                </p>
+
+            </div>
+
+        </div>
+
+        <!-- =====================================
+             INPUT
+        ===================================== -->
+
+        <div class="input-card">
+
+            <div class="section-title">
+
+                <h2>
+                    SENSOR OVERRIDE
+                </h2>
+
+                <div class="telemetry-mode">
+                    MANUAL TELEMETRY INPUT
+                </div>
+
+            </div>
+
+            <div class="input-grid">
+
+                <div class="input-group">
+
+                    <label>
+                        Temperature (°C)
+                    </label>
+
+                    <input type="number"
+                        id="temperature"
+                        placeholder="Thermal value">
+
+                </div>
+
+                <div class="input-group">
+
+                    <label>
+                        Humidity (%)
+                    </label>
+
+                    <input type="number"
+                        id="humidity"
+                        placeholder="Environmental value">
+
+                </div>
+
+                <div class="input-group">
+
+                    <label>
+                        Vibration (Hz)
+                    </label>
+
+                    <input type="number"
+                        id="vibration"
+                        placeholder="Mechanical value">
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="footer">
+            AC Predictive Maintenance Intelligence System
+        </div>
+
+    </div>
+
+    <script>
+
+        // =====================================
+        // LIVE CLOCK
+        // =====================================
+
+        function updateClock() {
+
+            document.getElementById(
+                "system_time"
+            ).innerText =
+                new Date().toLocaleString();
+        }
+
+        setInterval(updateClock, 1000);
+
+        updateClock();
+
+        // =====================================
+        // THINGSPEAK
+        // =====================================
+
+        const apiURL =
+            "https://api.thingspeak.com/channels/3287145/feeds/last.json?api_key=ZBNM2TAED0VJH2EE";
+
+        // =====================================
+        // CHART
+        // =====================================
+
+        const ctx =
+            document.getElementById('sensorChart');
+
+        const sensorChart =
+            new Chart(ctx, {
+
+                type: 'line',
+
+                data: {
+
+                    labels: [],
+
+                    datasets: [
+
+                        {
+                            label: 'Temperature',
+                            data: [],
+                            borderColor: '#ff9f43',
+                            backgroundColor: 'rgba(255,159,67,0.1)',
+                            fill: true,
+                            pointRadius: 2,
+                            borderWidth: 3,
+                            tension: 0.4
+                        },
+
+                        {
+                            label: 'Humidity',
+                            data: [],
+                            borderColor: '#70e0a3',
+                            backgroundColor: 'rgba(112,224,163,0.1)',
+                            fill: true,
+                            pointRadius: 2,
+                            borderWidth: 3,
+                            tension: 0.4
+                        },
+
+                        {
+                            label: 'Vibration',
+                            data: [],
+                            borderColor: '#ffc857',
+                            backgroundColor: 'rgba(255,200,87,0.1)',
+                            fill: true,
+                            pointRadius: 2,
+                            borderWidth: 3,
+                            tension: 0.4
+                        }
+
+                    ]
+                },
+
+                options: {
+
+                    responsive: true,
+
+                    maintainAspectRatio: false,
+
+                    animation: false,
+
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    },
+
+                    plugins: {
+
+                        legend: {
+
+                            labels: {
+                                color: '#f3e6c8'
+                            }
+                        }
+                    },
+
+                    scales: {
+
+                        x: {
+
+                            ticks: {
+                                color: '#b8a98d'
+                            },
+
+                            grid: {
+                                color: '#2b2b2b'
+                            }
+                        },
+
+                        y: {
+
+                            ticks: {
+                                color: '#b8a98d'
+                            },
+
+                            grid: {
+                                color: '#2b2b2b'
+                            }
+                        }
+                    }
+                }
+            });
+
+        // =====================================
+        // STATUS COLORS
+        // =====================================
+
+        function applyStatusColor(
+            element,
+            status
+        ) {
+
+            element.classList.remove(
+                "status-normal",
+                "status-warning",
+                "status-critical"
+            );
+
+            if (status === "NORMAL") {
+
+                element.classList.add(
+                    "status-normal"
+                );
+            }
+
+            else if (status === "WARNING") {
+
+                element.classList.add(
+                    "status-warning"
+                );
+            }
+
+            else {
+
+                element.classList.add(
+                    "status-critical"
+                );
+            }
+        }
+
+        // =====================================
+        // APPLY CARD STATE
+        // =====================================
+
+        function applyCardState(card, status) {
+
+            card.classList.remove(
+                "normal-card",
+                "warning-card",
+                "critical-card"
+            );
+
+            if (status === "NORMAL") {
+                card.classList.add("normal-card");
+            }
+            else if (status === "WARNING") {
+                card.classList.add("warning-card");
+            }
+            else {
+                card.classList.add("critical-card");
+            }
+        }
+
+        // =====================================
+        // DISPLAY RESULTS
+        // =====================================
+
+        function displayResult(data) {
+
+            const temp =
+                data.sensor_values.temperature;
+
+            const hum =
+                data.sensor_values.humidity;
+
+            const vib =
+                data.sensor_values.vibration;
+
+            const risk =
+                data.risk_score;
+
+            // VALUES
+
+            document.getElementById(
+                "temp_value"
+            ).innerText =
+                temp + "°";
+
+            document.getElementById(
+                "hum_value"
+            ).innerText =
+                hum + "%";
+
+            document.getElementById(
+                "vib_value"
+            ).innerText =
+                vib + "Hz";
+
+            document.getElementById(
+                "temp_status"
+            ).innerText =
+                data.sensor_status.temperature_status;
+
+            document.getElementById(
+                "hum_status"
+            ).innerText =
+                data.sensor_status.humidity_status;
+
+            document.getElementById(
+                "vib_status"
+            ).innerText =
+                data.sensor_status.vibration_status;
+
+            document.getElementById(
+                "final_status"
+            ).innerText =
+                data.final_status;
+
+            document.getElementById(
+                "ml_prediction"
+            ).innerText =
+                data.ml_prediction;
+
+            document.getElementById(
+                "risk_score"
+            ).innerText =
+                risk.toFixed(2) + "%";
+
+            document.getElementById(
+                "reason"
+            ).innerText =
+                data.reason;
+
+            // TEMP
+
+            document.getElementById(
+                "temp_load"
+            ).innerText =
+                temp <= 36 ? "Stable" :
+                temp <= 42 ? "Elevated" :
+                "Extreme";
+
+            document.getElementById(
+                "temp_trend"
+            ).innerText =
+                temp <= 36 ? "Safe" :
+                temp <= 42 ? "Monitor" :
+                "Critical";
+
+            document.getElementById(
+                "temp_condition"
+            ).innerText =
+                temp <= 36 ? "Normal Cooling" :
+                temp <= 42 ? "Thermal Stress" :
+                "Overheating";
+
+            // HUM
+
+            document.getElementById(
+                "hum_env"
+            ).innerText =
+                hum <= 95 ? "Stable" :
+                hum <= 98 ? "Moist" :
+                "Severe";
+
+            document.getElementById(
+                "hum_risk"
+            ).innerText =
+                hum <= 95 ? "Low" :
+                hum <= 98 ? "Moderate" :
+                "High";
+
+            document.getElementById(
+                "hum_impact"
+            ).innerText =
+                hum <= 95 ? "Minimal" :
+                hum <= 98 ? "Stress" :
+                "Condensation";
+
+            // VIB
+
+            document.getElementById(
+                "vib_activity"
+            ).innerText =
+                vib <= 2 ? "Balanced" :
+                vib <= 10 ? "Active" :
+                "Aggressive";
+
+            document.getElementById(
+                "vib_stability"
+            ).innerText =
+                vib <= 2 ? "Stable" :
+                vib <= 10 ? "Fluctuating" :
+                "Unstable";
+
+            document.getElementById(
+                "vib_condition"
+            ).innerText =
+                vib <= 2 ? "Smooth" :
+                vib <= 10 ? "Mechanical Stress" :
+                "Critical";
+
+            // FINAL
+
+            document.getElementById(
+                "risk_level"
+            ).innerText =
+                risk <= 30 ? "Low" :
+                risk <= 70 ? "Moderate" :
+                "Severe";
+
+            document.getElementById(
+                "maintenance_action"
+            ).innerText =
+                risk <= 30 ? "Routine" :
+                risk <= 70 ? "Inspection" :
+                "Immediate";
+
+            document.getElementById(
+                "system_priority"
+            ).innerText =
+                risk <= 30 ? "Low" :
+                risk <= 70 ? "Medium" :
+                "High";
+
+            // COLORS
+
+            applyStatusColor(
+                document.getElementById(
+                    "temp_status"
+                ),
+                data.sensor_status
+                .temperature_status
+            );
+
+            applyStatusColor(
+                document.getElementById(
+                    "hum_status"
+                ),
+                data.sensor_status
+                .humidity_status
+            );
+
+            applyStatusColor(
+                document.getElementById(
+                    "vib_status"
+                ),
+                data.sensor_status
+                .vibration_status
+            );
+
+            applyStatusColor(
+                document.getElementById(
+                    "final_status"
+                ),
+                data.final_status
+            );
+
+            applyStatusColor(
+                document.getElementById(
+                    "risk_score"
+                ),
+                data.final_status
+            );
+
+            // CARD STATES
+            applyCardState(
+                document.getElementById("temp_card"),
+                data.sensor_status.temperature_status
+            );
+
+            applyCardState(
+                document.getElementById("hum_card"),
+                data.sensor_status.humidity_status
+            );
+
+            applyCardState(
+                document.getElementById("vib_card"),
+                data.sensor_status.vibration_status
+            );
+
+            applyCardState(
+                document.getElementById("system_card"),
+                data.final_status
+            );
+
+            // CHART
+
+            updateChart(
+                temp,
+                hum,
+                vib
+            );
+        }
+
+        // =====================================
+        // UPDATE CHART
+        // =====================================
+
+        function updateChart(
+            temp,
+            hum,
+            vib
+        ) {
+
+            const time =
+                new Date()
+                .toLocaleTimeString();
+
+            if (
+                sensorChart.data.labels.length > 15
+            ) {
+
+                sensorChart.data.labels.shift();
+
+                sensorChart.data.datasets[0]
+                    .data.shift();
+
+                sensorChart.data.datasets[1]
+                    .data.shift();
+
+                sensorChart.data.datasets[2]
+                    .data.shift();
+            }
+
+            sensorChart.data.labels.push(
+                time
+            );
+
+            sensorChart.data.datasets[0]
+                .data.push(temp);
+
+            sensorChart.data.datasets[1]
+                .data.push(hum);
+
+            sensorChart.data.datasets[2]
+                .data.push(vib);
+
+            sensorChart.update();
+        }
+
+        // =====================================
+        // API CALL
+        // =====================================
+
+        async function predictValues(
+            temperature,
+            humidity,
+            vibration
+        ) {
+
+            const response =
+                await fetch("/predict", {
+
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    body: JSON.stringify({
+
+                        temperature,
+                        humidity,
+                        vibration
+                    })
+                });
+
+            const data =
+                await response.json();
+
+            displayResult(data);
+        }
+
+        // =====================================
+        // INPUT REFERENCES
+        // =====================================
+
+        const tempInput =
+        document.getElementById(
+        "temperature"
+        );
+
+        const humInput =
+        document.getElementById(
+        "humidity"
+        );
+
+        const vibInput =
+        document.getElementById(
+        "vibration"
+        );
+
+        // =====================================
+        // MANUAL INPUT MODE
+        // =====================================
+
+        let manualMode = false;
+
+        async function autoPredict() {
+
+        manualMode = true;
+
+        const temperature =
+        parseFloat(
+        tempInput.value
+        );
+
+        const humidity =
+        parseFloat(
+        humInput.value
+        );
+
+        const vibration =
+        parseFloat(
+        vibInput.value
+        );
+
+        if (
+            isNaN(temperature) ||
+            isNaN(humidity) ||
+            isNaN(vibration)
+        ) {
+
+            // return to live sensor mode
+            manualMode = false;
+
+            return;
+        }
+
+        predictValues(
+        temperature,
+        humidity,
+        vibration
+        );
+        }
+
+        tempInput.addEventListener(
+        "input",
+        autoPredict
+        );
+
+        humInput.addEventListener(
+        "input",
+        autoPredict
+        );
+
+        vibInput.addEventListener(
+        "input",
+        autoPredict
+        );
+
+        // =====================================
+        // LIVE SENSOR MODE
+        // =====================================
+
+        async function loadLiveSensorData() {
+
+        // Don't overwrite manual input
+        if (manualMode) {
+        return;
+        }
+
+        try {
+
+        const response =
+        await fetch(apiURL);
+
+        const data =
+        await response.json();
+
+        const temperature =
+        parseFloat(data.field1);
+
+        const humidity =
+        parseFloat(data.field2);
+
+        const vibration =
+        parseFloat(data.field3);
+
+        // LIVE SENSOR PREDICTION ONLY
+        // Don't inject values into manual fields
+
+        predictValues(
+            temperature,
+            humidity,
+            vibration
+        );
+
+        } catch (error) {
+
+        console.log(
+        "Sensor fetch error:",
+        error
+        );
+        }
+        }
+
+        // =====================================
+        // START LIVE SENSOR
+        // =====================================
+
+        loadLiveSensorData();
+
+        // 30 seconds live update
+        setInterval(
+        loadLiveSensorData,
+        30000
+        );
+
+    </script>
+
+</body>
+
+</html>
